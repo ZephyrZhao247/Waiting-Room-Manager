@@ -1,0 +1,7 @@
+email,registered_name,round_1,round_2,round_3
+alice@example.com,Alice Brown,1,1,0
+bob@example.com,Robert Smith,1,0,1
+charlie@example.com,Charles Johnson,1,0,0
+david@example.com,David Williams,0,1,0
+eve@example.com,Eve Davis,0,0,1
+frank@example.com,Frank Miller,0,0,1

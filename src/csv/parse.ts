@@ -9,11 +9,11 @@ import { normalizeEmail, isValidEmail } from '../utils';
 function detectCSVFormat(headers: string[]): 'row-based' | 'column-based' | 'unknown' {
   const normalizedHeaders = headers.map(h => h.toLowerCase().trim());
 
-  // Row-based: expects "round_id" (or similar) and "email", optionally "registered_name"
-  const hasRoundId = normalizedHeaders.some(h => h.includes('round'));
+  // Row-based: expects "paper" or "round_id" (or similar) and "email", optionally name fields
+  const hasRoundId = normalizedHeaders.some(h => h === 'paper' || h.includes('round'));
   const hasEmail = normalizedHeaders.some(h => h === 'email' || h.includes('email'));
 
-  if (hasRoundId && hasEmail && normalizedHeaders.length >= 2 && normalizedHeaders.length <= 3) {
+  if (hasRoundId && hasEmail && normalizedHeaders.length >= 2) {
     return 'row-based';
   }
 
@@ -27,7 +27,8 @@ function detectCSVFormat(headers: string[]): 'row-based' | 'column-based' | 'unk
 
 /**
  * Parse row-based CSV
- * Format: round_id,email
+ * Format: paper,title,given_name,family_name,email,conflicttype
+ * The 'paper' column is the round index
  */
 function parseRowBased(rows: any[]): {
   rounds: Map<RoundId, Set<string>>;
@@ -44,22 +45,38 @@ function parseRowBased(rows: any[]): {
     const row = rows[i];
     const rowNum = i + 2; // +2 because of 0-index and header row
 
-    // Find round_id, email, and registered_name columns (flexible column names)
-    const roundIdKey = Object.keys(row).find(k => k.toLowerCase().includes('round'));
+    // Find columns - support both new format (paper, given_name, family_name) and old format (round_id, registered_name)
+    const roundIdKey = Object.keys(row).find(k => {
+      const key = k.toLowerCase();
+      return key === 'paper' || key.includes('round');
+    });
     const emailKey = Object.keys(row).find(k => k.toLowerCase().includes('email'));
-    const nameKey = Object.keys(row).find(k => k.toLowerCase().includes('name'));
+    
+    // Check for new format (given_name, family_name) or old format (registered_name)
+    const givenNameKey = Object.keys(row).find(k => k.toLowerCase() === 'given_name');
+    const familyNameKey = Object.keys(row).find(k => k.toLowerCase() === 'family_name');
+    const nameKey = Object.keys(row).find(k => k.toLowerCase().includes('name') && k.toLowerCase() !== 'given_name' && k.toLowerCase() !== 'family_name');
 
     if (!roundIdKey || !emailKey) {
-      errors.push(`Row ${rowNum}: Missing round_id or email column`);
+      errors.push(`Row ${rowNum}: Missing paper/round_id or email column`);
       continue;
     }
 
     const roundId = String(row[roundIdKey]).trim();
     const email = String(row[emailKey]).trim();
-    const registeredName = nameKey ? String(row[nameKey]).trim() : '';
+    
+    // Build registered name from given_name + family_name or use registered_name
+    let registeredName = '';
+    if (givenNameKey && familyNameKey) {
+      const givenName = String(row[givenNameKey]).trim();
+      const familyName = String(row[familyNameKey]).trim();
+      registeredName = [givenName, familyName].filter(Boolean).join(' ');
+    } else if (nameKey) {
+      registeredName = String(row[nameKey]).trim();
+    }
 
     if (!roundId) {
-      warnings.push(`Row ${rowNum}: Empty round_id, skipping`);
+      warnings.push(`Row ${rowNum}: Empty round_id/paper, skipping`);
       continue;
     }
 

@@ -57,6 +57,10 @@ export const UploadPanel: React.FC = () => {
       });
     } finally {
       setIsLoading(false);
+      // Reset file input to allow re-uploading the same file
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 

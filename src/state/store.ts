@@ -140,6 +140,7 @@ export const useAppStore = create<AppState & {
   getMovedParticipants: (roundId: RoundId) => Set<string>;
   setCachedParticipants: (participants: any[]) => void;
   clearCachedParticipants: () => void;
+  updateParticipantEmail: (participantUUID: string, email: string) => void;
   setEmailOverride: (participantUUID: string, email: string) => void;
   removeEmailOverride: (participantUUID: string) => void;
 }>((set, get) => ({
@@ -289,6 +290,18 @@ export const useAppStore = create<AppState & {
       cachedParticipants: null,
       lastEmailFetchTime: null,
     });
+  },
+
+  updateParticipantEmail: (participantUUID, email) => {
+    const cachedParticipants = get().cachedParticipants;
+    if (!cachedParticipants) return;
+
+    const updated = cachedParticipants.map(p => 
+      p.participantUUID === participantUUID ? { ...p, email } : p
+    );
+    
+    set({ cachedParticipants: updated });
+    console.log(`[Store] Updated email for ${participantUUID}: ${email}`);
   },
 
   setEmailOverride: (participantUUID, email) => {

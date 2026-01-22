@@ -111,6 +111,47 @@ export interface MatchResult {
   noEmail: Participant[]; // participants without email (need fallback)
 }
 
+// Breakout Room types
+export interface BreakoutRoom {
+  breakoutRoomId: string;
+  name: string;
+  participants?: ({
+    participantStatus: 'assigned' | 'joined';
+  } & BreakoutRoomParticipant)[];
+}
+
+export interface BreakoutRoomParticipant {
+  participantUUID: string;
+  displayName: string;
+}
+
+export interface BreakoutRoomsResponse {
+  rooms: BreakoutRoom[];
+  state: 'open' | 'closed';
+  unassigned?: BreakoutRoomParticipant[];
+}
+
+export interface CreateBreakoutRoomsOptions {
+  numberOfRooms: number;
+  assign: 'automatically' | 'manually' | 'participantsChoose';
+  names?: string[];
+}
+
+export interface AssignParticipantToBreakoutRoomOptions {
+  uuid?: string; // ID of the breakout room
+  participantUUID?: string; // Meeting-specific participant identifier
+  participant?: string; // Deprecated
+}
+
+export interface ConfigureBreakoutRoomsOptions {
+  allowParticipantsChooseRoom?: boolean;
+  allowParticipantsReturnToMainSession?: boolean;
+  automaticallyMoveParticipantsIntoRooms?: boolean;
+  closeAfter?: number;
+  countDown?: number;
+  automaticallyMoveParticipantsIntoMainRoom?: boolean;
+}
+
 // Zoom SDK capabilities we need
 export type ZoomCapability =
   | 'getMeetingParticipants'
@@ -118,6 +159,12 @@ export type ZoomCapability =
   | 'putParticipantToWaitingRoom'
   | 'admitParticipantFromWaitingRoom'
   | 'getWaitingRoomParticipants'
+  | 'createBreakoutRooms'
+  | 'configureBreakoutRooms'
+  | 'openBreakoutRooms'
+  | 'closeBreakoutRooms'
+  | 'getBreakoutRoomList'
+  | 'assignParticipantToBreakoutRoom'
   | 'showNotification';
 
 export interface ZoomSDKConfig {

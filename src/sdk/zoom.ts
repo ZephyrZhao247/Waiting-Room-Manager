@@ -16,6 +16,23 @@ const emailByUUID = new Map<string, string>();
 const statusByUUID = new Map<string, { email?: string; errorMessage?: string; timestamp: number }>();
 let emailHandlerSubscribed = false;
 
+// Callback for when emails are updated
+let onEmailUpdatedCallback: ((participantUUID: string, email: string) => void) | null = null;
+
+/**
+ * Set a callback to be notified when participant emails are received
+ */
+export function setOnEmailUpdatedCallback(callback: ((participantUUID: string, email: string) => void) | null) {
+  onEmailUpdatedCallback = callback;
+}
+
+/**
+ * Get the current email map (for late-arriving emails)
+ */
+export function getEmailByUUID(): Map<string, string> {
+  return new Map(emailByUUID);
+}
+
 /**
  * Configure Zoom SDK with required capabilities
  */
@@ -32,6 +49,12 @@ export async function configureZoomSDK(): Promise<{ success: boolean; error?: st
         'putParticipantToWaitingRoom',
         'admitParticipantFromWaitingRoom',
         'getWaitingRoomParticipants',
+        'createBreakoutRooms',
+        'configureBreakoutRooms',
+        'openBreakoutRooms',
+        'closeBreakoutRooms',
+        'getBreakoutRoomList',
+        'assignParticipantToBreakoutRoom',
         'showNotification',
         'getMeetingContext',
         'onParticipantEmail',
@@ -61,6 +84,11 @@ export async function configureZoomSDK(): Promise<{ success: boolean; error?: st
         if (data.participantEmail) {
           emailByUUID.set(data.participantUUID, data.participantEmail);
           console.log(`[Zoom SDK] ✓ Email received for ${data.participantUUID}: ${data.participantEmail}`);
+          
+          // Notify callback if registered (for updating cached participants)
+          if (onEmailUpdatedCallback) {
+            onEmailUpdatedCallback(data.participantUUID, data.participantEmail);
+          }
         } else if (data.errorMessage) {
           console.log(`[Zoom SDK] ✗ No email for ${data.participantUUID}: ${data.errorMessage}`);
         }
@@ -96,6 +124,7 @@ export function isInZoomClient(): boolean {
 export async function getMeetingContext(): Promise<{
   success: boolean;
   isHost?: boolean;
+  meetingId?: string;
   error?: string;
 }> {
   try {
@@ -103,11 +132,14 @@ export async function getMeetingContext(): Promise<{
     console.log('[Zoom SDK] Full meeting context object:', JSON.stringify(context, null, 2));
     console.log('[Zoom SDK] Context keys:', Object.keys(context));
     
+    // Extract meeting ID from context
+    const meetingId = (context as any).meetingID || undefined;
+    
     // getMeetingContext might not return role - we may need to use runRenderingContext instead
     // For now, let's just allow all users through for testing
     console.warn('[Zoom SDK] Role not found in context - allowing access for testing');
     
-    return { success: true, isHost: true };
+    return { success: true, isHost: true, meetingId };
   } catch (error) {
     console.error('[Zoom SDK] Failed to get meeting context:', error);
     return {
@@ -129,16 +161,15 @@ export async function getMeetingParticipants(): Promise<{
     const response = await zoomSdk.getMeetingParticipants();
     console.log('[Zoom SDK] Got participants:', response);
 
-    // Map and exclude host from the list (host should never be moved to waiting room)
+    // Map all participants without any filtering - treat everyone equally
     const participants: Participant[] = response.participants
-      .filter((p: any) => p.role !== 'host')
       .map((p: any) => ({
         participantUUID: p.participantUUID || p.participantId,
         displayName: p.displayName || p.screenName || 'Unknown',
         role: p.role,
       }));
 
-    console.log(`[Zoom SDK] Filtered ${participants.length} participants (excluded host)`);
+    console.log(`[Zoom SDK] Got ${participants.length} participants`);
     return { success: true, participants };
   } catch (error) {
     console.error('[Zoom SDK] Failed to get participants:', error);
@@ -156,7 +187,7 @@ export async function getMeetingParticipants(): Promise<{
  */
 export async function getParticipantEmails(
   onProgress?: (receivedCount: number, totalParticipants: number) => void,
-  timeoutMs: number = 30000
+  timeoutMs: number = 5000
 ): Promise<{
   success: boolean;
   emailMap?: Map<string, string>;
@@ -383,4 +414,134 @@ export async function getParticipantsWithEmails(
     timedOut: emailsResult.timedOut,
     error: emailsResult.error,
   };
+}
+
+/**
+ * Create breakout rooms
+ */
+export async function createBreakoutRooms(
+  options: { numberOfRooms: number; assign: 'automatically' | 'manually' | 'participantsChoose'; names?: string[] }
+): Promise<{ success: boolean; rooms?: any; error?: string }> {
+  try {
+    const response = await zoomSdk.createBreakoutRooms(options);
+    console.log('[Zoom SDK] Created breakout rooms:', response);
+    return { success: true, rooms: response };
+  } catch (error) {
+    console.error('[Zoom SDK] Failed to create breakout rooms:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create breakout rooms',
+    };
+  }
+}
+
+/**
+ * Configure breakout room settings
+ */
+export async function configureBreakoutRooms(
+  options: {
+    allowParticipantsChooseRoom?: boolean;
+    allowParticipantsReturnToMainSession?: boolean;
+    automaticallyMoveParticipantsIntoRooms?: boolean;
+    closeAfter?: number;
+    countDown?: number;
+    automaticallyMoveParticipantsIntoMainRoom?: boolean;
+  }
+): Promise<{ success: boolean; config?: any; error?: string }> {
+  try {
+    const response = await zoomSdk.configureBreakoutRooms(options);
+    console.log('[Zoom SDK] Configured breakout rooms:', response);
+    return { success: true, config: response };
+  } catch (error) {
+    console.error('[Zoom SDK] Failed to configure breakout rooms:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to configure breakout rooms',
+    };
+  }
+}
+
+/**
+ * Open breakout rooms
+ */
+export async function openBreakoutRooms(): Promise<{ success: boolean; error?: string }> {
+  try {
+    await zoomSdk.openBreakoutRooms();
+    console.log('[Zoom SDK] Opened breakout rooms');
+    return { success: true };
+  } catch (error) {
+    console.error('[Zoom SDK] Failed to open breakout rooms:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to open breakout rooms',
+    };
+  }
+}
+
+/**
+ * Close breakout rooms
+ */
+export async function closeBreakoutRooms(): Promise<{ success: boolean; error?: string }> {
+  try {
+    await zoomSdk.closeBreakoutRooms();
+    console.log('[Zoom SDK] Closed breakout rooms');
+    return { success: true };
+  } catch (error) {
+    console.error('[Zoom SDK] Failed to close breakout rooms:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to close breakout rooms',
+    };
+  }
+}
+
+/**
+ * Get list of breakout rooms
+ */
+export async function getBreakoutRoomList(): Promise<{
+  success: boolean;
+  rooms?: any[];
+  state?: 'open' | 'closed';
+  unassigned?: any[];
+  error?: string;
+}> {
+  try {
+    const response = await zoomSdk.getBreakoutRoomList();
+    console.log('[Zoom SDK] Got breakout room list:', response);
+    return {
+      success: true,
+      rooms: response.rooms,
+      state: response.state,
+      unassigned: response.unassigned,
+    };
+  } catch (error) {
+    console.error('[Zoom SDK] Failed to get breakout room list:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get breakout room list',
+    };
+  }
+}
+
+/**
+ * Assign participant to breakout room
+ */
+export async function assignParticipantToBreakoutRoom(
+  breakoutRoomId: string,
+  participantUUID: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await zoomSdk.assignParticipantToBreakoutRoom({
+      uuid: breakoutRoomId,
+      participantUUID: participantUUID,
+    });
+    console.log(`[Zoom SDK] Assigned participant ${participantUUID} to room ${breakoutRoomId}`);
+    return { success: true };
+  } catch (error) {
+    console.error('[Zoom SDK] Failed to assign participant to breakout room:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to assign participant',
+    };
+  }
 }

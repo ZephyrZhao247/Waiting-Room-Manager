@@ -11,6 +11,7 @@ import { fileURLToPath, URL } from 'url';
 import { start } from './server/server.js';
 import indexRoutes from './server/routes/index.js';
 import authRoutes from './server/routes/auth.js';
+import associationsRoutes from './server/routes/associations.js';
 
 import { appName, port, redirectUri } from './config.js';
 
@@ -91,6 +92,7 @@ app.use(express.static(staticDir));
 /* Routing */
 app.use('/', indexRoutes);
 app.use('/auth', authRoutes);
+app.use('/api/associations', associationsRoutes);
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {

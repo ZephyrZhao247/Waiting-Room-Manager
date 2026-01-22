@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../state/store';
-import { getParticipantsWithEmails, showNotification, getWaitingRoomParticipants } from '../sdk/zoom';
+import { getParticipantsWithEmails, showNotification, getBreakoutRoomList, setOnEmailUpdatedCallback } from '../sdk/zoom';
 import { matchParticipants, getConflictEmailsForRound } from '../operations/matching';
 import {
-  moveParticipantsToWaitingRoom,
-  admitParticipantsFromWaitingRoom,
-} from '../operations/waitingRoom';
+  sendParticipantsToBreakoutRooms,
+  returnParticipantsFromBreakoutRooms,
+} from '../operations/breakoutRoom';
 import type { ParticipantWithEmail, MatchResult } from '../types';
 import { ConfirmDialog } from './ConfirmDialog';
 
@@ -27,6 +27,7 @@ export const ControlPanel: React.FC = () => {
   const lastEmailFetchTime = useAppStore((state) => state.lastEmailFetchTime);
   const setCachedParticipants = useAppStore((state) => state.setCachedParticipants);
   const clearCachedParticipants = useAppStore((state) => state.clearCachedParticipants);
+  const updateParticipantEmail = useAppStore((state) => state.updateParticipantEmail);
   const emailOverrides = useAppStore((state) => state.emailOverrides);
 
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
@@ -34,7 +35,7 @@ export const ControlPanel: React.FC = () => {
   const [selectedFallbackUUIDs, setSelectedFallbackUUIDs] = useState<Set<string>>(new Set());
   const [isFetchingEmails, setIsFetchingEmails] = useState(false);
   const [emailFetchProgress, setEmailFetchProgress] = useState<{ received: number; total: number } | null>(null);
-  const [actualWaitingRoomCount, setActualWaitingRoomCount] = useState<number>(0);
+  const [breakoutRoomCount, setBreakoutRoomCount] = useState<number>(0);
   
   // Confirmation dialog state
   const [showStartDialog, setShowStartDialog] = useState(false);
@@ -42,22 +43,38 @@ export const ControlPanel: React.FC = () => {
   const [participantsToMove, setParticipantsToMove] = useState<ParticipantWithEmail[]>([]);
   const [participantsToAdmit, setParticipantsToAdmit] = useState<ParticipantWithEmail[]>([]);
 
-  // Update actual waiting room count when round changes
-  const updateWaitingRoomCount = async () => {
+  // Set up callback to update participant emails as they arrive (even after timeout)
+  useEffect(() => {
+    setOnEmailUpdatedCallback((participantUUID, email) => {
+      console.log('[ControlPanel] Late email received, updating store:', participantUUID, email);
+      updateParticipantEmail(participantUUID, email);
+    });
+    
+    return () => {
+      setOnEmailUpdatedCallback(null);
+    };
+  }, [updateParticipantEmail]);
+
+  // Update breakout room count when round changes
+  const updateBreakoutRoomCount = async () => {
     try {
-      const result = await getWaitingRoomParticipants();
-      if (result.success && result.participants) {
-        setActualWaitingRoomCount(result.participants.length);
+      const result = await getBreakoutRoomList();
+      if (result.success && result.rooms) {
+        let count = 0;
+        for (const room of result.rooms) {
+          count += room.participants?.length || 0;
+        }
+        setBreakoutRoomCount(count);
       }
     } catch (error) {
-      console.error('Error fetching waiting room count:', error);
+      console.error('Error fetching breakout room count:', error);
     }
   };
 
-  // Update waiting room count when round changes or after operations
+  // Update breakout room count when round changes or after operations
   useEffect(() => {
     if (selectedRoundId && movedParticipants.size > 0) {
-      updateWaitingRoomCount();
+      updateBreakoutRoomCount();
     }
   }, [selectedRoundId]);
 
@@ -159,11 +176,12 @@ export const ControlPanel: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      // Move matched participants
+      // Send matched participants to breakout room
       startRound(selectedRoundId);
 
-      const results = await moveParticipantsToWaitingRoom(
+      const results = await sendParticipantsToBreakoutRooms(
         participantsToMove,
+        selectedRoundId,
         (completed, total) => setProgress({ completed, total })
       );
 
@@ -194,17 +212,17 @@ export const ControlPanel: React.FC = () => {
       updateRoundStats(selectedRoundId, successCount, 0);
 
       await showNotification(
-        `Round started: ${successCount}/${participantsToMove.length} participants moved to waiting room`,
+        `Round started: ${successCount}/${participantsToMove.length} participants sent to breakout room`,
         successCount === participantsToMove.length ? 'info' : 'warning'
       );
 
       setProgress(null);
-      // Update actual waiting room count
-      await updateWaitingRoomCount();
+      // Update breakout room count
+      await updateBreakoutRoomCount();
     } catch (error) {
       console.error('Error confirming start round:', error);
       await showNotification(
-        `Error: ${error instanceof Error ? error.message : 'Failed to move participants'}`,
+        `Error: ${error instanceof Error ? error.message : 'Failed to send participants to breakout room'}`,
         'error'
       );
     } finally {
@@ -248,34 +266,25 @@ export const ControlPanel: React.FC = () => {
 
     try {
       const movedParticipants = getMovedParticipants(selectedRoundId);
-      const participantUUIDs = Array.from(movedParticipants);
 
-      const results = await admitParticipantsFromWaitingRoom(
-        participantUUIDs,
-        (completed, total) => setProgress({ completed, total })
-      );
+      // Return all participants from breakout rooms
+      const result = await returnParticipantsFromBreakoutRooms();
 
-      // Log results
-      let successCount = 0;
-      for (const result of results) {
-        if (result.success) {
-          successCount++;
-          addActionLog({
-            type: 'admit_from_waiting_room',
-            roundId: selectedRoundId,
-            participantUUID: result.participantUUID,
-            status: 'success',
-          });
-        } else {
-          addActionLog({
-            type: 'admit_from_waiting_room',
-            roundId: selectedRoundId,
-            participantUUID: result.participantUUID,
-            status: result.error?.includes('not in waiting room') ? 'skipped' : 'failed',
-            error: result.error,
-          });
-        }
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to close breakout rooms');
       }
+
+      const successCount = result.participantCount || 0;
+
+      // Log success for all moved participants
+      movedParticipants.forEach(uuid => {
+        addActionLog({
+          type: 'admit_from_waiting_room',
+          roundId: selectedRoundId,
+          participantUUID: uuid,
+          status: 'success',
+        });
+      });
 
       endRound(selectedRoundId);
       updateRoundStats(
@@ -285,15 +294,15 @@ export const ControlPanel: React.FC = () => {
       );
 
       await showNotification(
-        `Round ended: ${successCount}/${participantUUIDs.length} participants admitted back`,
-        successCount === participantUUIDs.length ? 'info' : 'warning'
+        `Round ended: ${successCount} participants returned from breakout room`,
+        'info'
       );
 
       setProgress(null);
       setMatchResult(null);
       setParticipantsToAdmit([]);
-      // Update actual waiting room count
-      await updateWaitingRoomCount();
+      // Update breakout room count
+      await updateBreakoutRoomCount();
     } catch (error) {
       console.error('Error ending round:', error);
       await showNotification(
@@ -320,8 +329,9 @@ export const ControlPanel: React.FC = () => {
 
       if (participantsToMove.length === 0) return;
 
-      const results = await moveParticipantsToWaitingRoom(
+      const results = await sendParticipantsToBreakoutRooms(
         participantsToMove,
+        selectedRoundId,
         (completed, total) => setProgress({ completed, total })
       );
 
@@ -466,7 +476,7 @@ export const ControlPanel: React.FC = () => {
           className="btn btn-primary w-full"
           title={!cachedParticipants ? 'Fetch participant emails first' : ''}
         >
-          Start Round (Exclude Conflicted)
+          📤 Send to Breakout
         </button>
 
         <button
@@ -474,7 +484,7 @@ export const ControlPanel: React.FC = () => {
           disabled={!selectedRoundId || isProcessing || movedParticipants.size === 0}
           className="btn btn-success w-full"
         >
-          End Round (Restore Admitted)
+          📥 Return from Breakout
         </button>
       </div>
 
@@ -569,7 +579,7 @@ export const ControlPanel: React.FC = () => {
           <div className="flex items-center justify-between mb-1">
             <h4 className="font-medium text-blue-900">Current Round Status</h4>
             <button
-              onClick={updateWaitingRoomCount}
+              onClick={updateBreakoutRoomCount}
               className="text-xs text-blue-600 hover:text-blue-800"
               disabled={isProcessing}
             >
@@ -577,7 +587,7 @@ export const ControlPanel: React.FC = () => {
             </button>
           </div>
           <div className="text-sm text-blue-800">
-            {actualWaitingRoomCount} participant{actualWaitingRoomCount !== 1 ? 's' : ''} currently in waiting room
+            {breakoutRoomCount} participant{breakoutRoomCount !== 1 ? 's' : ''} currently in breakout room
           </div>
         </div>
       )}
@@ -586,8 +596,8 @@ export const ControlPanel: React.FC = () => {
       <ConfirmDialog
         isOpen={showStartDialog}
         title={`Start Round: ${selectedRoundId}`}
-        message={`Are you sure you want to move these participants to the waiting room?`}
-        confirmLabel="Move to Waiting Room"
+        message={`Are you sure you want to send these participants to a breakout room?`}
+        confirmLabel="Send to Breakout Room"
         cancelLabel="Cancel"
         onConfirm={confirmStartRound}
         onCancel={() => {
@@ -603,8 +613,8 @@ export const ControlPanel: React.FC = () => {
       <ConfirmDialog
         isOpen={showEndDialog}
         title={`End Round: ${selectedRoundId}`}
-        message={`Are you sure you want to admit these participants back from the waiting room?`}
-        confirmLabel="Admit from Waiting Room"
+        message={`Are you sure you want to return these participants from the breakout room?`}
+        confirmLabel="Return to Main Meeting"
         cancelLabel="Cancel"
         onConfirm={confirmEndRound}
         onCancel={() => {

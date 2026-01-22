@@ -1,15 +1,59 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../state/store';
+import { getMeetingParticipants, showNotification } from '../sdk/zoom';
 
 export const EmailAssociationPanel: React.FC = () => {
   const cachedParticipants = useAppStore((state) => state.cachedParticipants);
   const emailOverrides = useAppStore((state) => state.emailOverrides);
   const setEmailOverride = useAppStore((state) => state.setEmailOverride);
   const removeEmailOverride = useAppStore((state) => state.removeEmailOverride);
+  const setCachedParticipants = useAppStore((state) => state.setCachedParticipants);
 
   const [selectedUUID, setSelectedUUID] = useState<string>('');
   const [emailInput, setEmailInput] = useState<string>('');
   const [showOnlyWithoutEmail, setShowOnlyWithoutEmail] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Get the latest participant list (with fresh UUIDs)
+      const participantsResult = await getMeetingParticipants();
+      if (!participantsResult.success || !participantsResult.participants) {
+        throw new Error(participantsResult.error || 'Failed to get participants');
+      }
+
+      // Create a map of old emails by displayName to preserve associations
+      const emailByName = new Map<string, string>();
+      cachedParticipants?.forEach(p => {
+        if (p.email && p.displayName) {
+          emailByName.set(p.displayName, p.email);
+        }
+      });
+      
+      // Update participants with fresh UUIDs, preserving emails by matching displayName
+      const updatedParticipants = participantsResult.participants.map(p => ({
+        participantUUID: p.participantUUID,
+        displayName: p.displayName,
+        email: emailByName.get(p.displayName) || '',
+      }));
+      
+      setCachedParticipants(updatedParticipants);
+      
+      await showNotification(
+        `✓ Refreshed ${updatedParticipants.length} participant(s)`,
+        'info'
+      );
+    } catch (error) {
+      console.error('Error refreshing participants:', error);
+      await showNotification(
+        `Error: ${error instanceof Error ? error.message : 'Failed to refresh'}`,
+        'error'
+      );
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const handleAssociate = () => {
     if (!selectedUUID || !emailInput.trim()) return;
@@ -35,7 +79,19 @@ export const EmailAssociationPanel: React.FC = () => {
 
   return (
     <div className="card h-full flex flex-col">
-      <h2 className="text-xl font-bold mb-4">Email Association</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold">Email Association</h2>
+        {cachedParticipants && (
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="btn btn-secondary text-sm py-1 px-3"
+            title="Refresh participant list to get latest UUIDs"
+          >
+            {isRefreshing ? 'Refreshing...' : '🔄 Refresh'}
+          </button>
+        )}
+      </div>
 
       {!cachedParticipants ? (
         <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">

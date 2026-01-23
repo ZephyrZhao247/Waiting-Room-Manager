@@ -15,13 +15,13 @@ This app is designed for hosts running long meetings (e.g., 8-hour sessions) wit
 
 ## 🏗️ Architecture
 
-This is a **frontend-only Zoom App** that runs inside the Zoom desktop client as a webview:
+This is a Zoom App that runs inside the Zoom desktop client as a webview and is served by a small Express backend:
 
 - **Tech Stack**: React + TypeScript + Vite
 - **State Management**: Zustand with localStorage persistence
 - **CSV Parsing**: PapaParse
 - **Zoom Integration**: Zoom Apps SDK (@zoom/appssdk)
-- **No Backend Required**: All processing happens client-side
+- **Backend**: Express for Zoom app hosting and browser tools (`/register`, `/getconflicts`)
 
 ## 🚀 Quick Start
 
@@ -32,7 +32,7 @@ This is a **frontend-only Zoom App** that runs inside the Zoom desktop client as
 - Zoom account with ability to create Zoom Apps
 - ngrok (for local development) or static hosting (for production)
 
-### Installation
+### Installation (dev)
 
 ```bash
 # Navigate to project directory
@@ -47,11 +47,37 @@ npm run dev
 
 The app will run on `http://localhost:3000`.
 
+### Build & run (Express server)
+
+```bash
+# Build production bundle
+npm run build
+
+# Run the server (requires env vars below)
+PORT=3000 \
+ZM_CLIENT_ID=... \
+ZM_CLIENT_SECRET=... \
+ZM_REDIRECT_URL=https://your-domain/zoom \
+SESSION_SECRET=your-random-string \
+node app.js
+```
+
+- Zoom App is served at `/zoom` (set your Zoom Home URL to `https://your-domain/zoom`).
+- Browser tools remain at `/register` and `/getconflicts` and do not load the Zoom SDK.
+
 ### Browser endpoints
 
 - `GET /register` — Browser page to choose a user from `data/users.csv` and register the Zoom email they'll join with; writes to `data/registrants.csv`.
 - `POST /register` — Body: `given_name, family_name, email, zoom_email, zoom_email_confirm`.
 - `GET /getconflicts` — Generates `data/meeting_conflicts.csv` by swapping emails in `data/pcconflicts.csv` with the matching `zoom_email` from `data/registrants.csv`, then downloads the file.
+
+### One-command setup (Ubuntu)
+
+```bash
+./scripts/setup.sh
+```
+
+Installs Node (via nvm), npm packages, and builds `dist/`. Afterward, set your env vars and run `node app.js` as shown above.
 
 ### Setting Up ngrok (for local development)
 

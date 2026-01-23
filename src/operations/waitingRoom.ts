@@ -1,9 +1,5 @@
 // Waiting room operations with retry logic and batching
-import type {
-  WaitingRoomOperation,
-  OperationResult,
-  ParticipantWithEmail,
-} from '../types';
+import type { OperationResult, ParticipantWithEmail } from '../types';
 import {
   moveToWaitingRoom,
   admitFromWaitingRoom,

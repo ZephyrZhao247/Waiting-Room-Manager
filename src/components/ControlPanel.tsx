@@ -274,7 +274,7 @@ export const ControlPanel: React.FC = () => {
         throw new Error(result.error || 'Failed to close breakout rooms');
       }
 
-      const successCount = result.participantCount || 0;
+      const successCount = movedParticipants.size;
 
       // Log success for all moved participants
       movedParticipants.forEach(uuid => {

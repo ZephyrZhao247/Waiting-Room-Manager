@@ -4,13 +4,13 @@
     "framework": "vite",
     "rewrites": [
         {
-            "source": "/(.*)",
+            "source": "/zoom/(.*)",
             "destination": "/index.html"
         }
     ],
     "headers": [
         {
-            "source": "/(.*)",
+            "source": "/zoom/(.*)",
             "headers": [
                 {
                     "key": "X-Frame-Options",

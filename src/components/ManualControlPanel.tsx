@@ -9,7 +9,6 @@ export const ManualControlPanel: React.FC = () => {
   const setIsProcessing = useAppStore((state) => state.setIsProcessing);
   const addActionLog = useAppStore((state) => state.addActionLog);
   const emailOverrides = useAppStore((state) => state.emailOverrides);
-  const emailToName = useAppStore((state) => state.emailToName);
   const cachedParticipants = useAppStore((state) => state.cachedParticipants);
 
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -352,4 +351,3 @@ export const ManualControlPanel: React.FC = () => {
     </div>
   );
 };
-

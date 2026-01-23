@@ -1,10 +1,14 @@
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { handleError, sanitize } from '../helpers/routing.js';
 import { contextHeader, getAppContext } from '../helpers/cipher.js';
 import { getInstallURL } from '../helpers/zoom-api.js';
 import session from '../session.js';
 
 const router = express.Router();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const spaIndex = path.join(__dirname, '../../dist/index.html');
 
 /*
  * Home Page - Zoom App Launch handler
@@ -34,10 +38,8 @@ router.get('/', async (req, res, next) => {
             return res.status(401).json({ error: 'Invalid or expired context' });
         }
 
-        return res.render('index', {
-            isZoom: true,
-            title: `Hello Zoom`,
-        });
+        // Zoom client: serve the SPA bundle
+        return res.sendFile(spaIndex);
     } catch (e) {
         next(handleError(e));
     }

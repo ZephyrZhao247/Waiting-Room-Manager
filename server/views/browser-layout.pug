@@ -1,0 +1,117 @@
+doctype html
+html(lang="en")
+    head
+        block head
+            title= title
+            meta(charset='utf-8')
+            meta(http-equiv='X-UA-Compatible', content='IE=edge')
+            meta(name='description', content='Zoom Meeting Registration')
+            meta(name='viewport', content='width=device-width, initial-scale=1')
+        style.
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                padding: 20px;
+            }
+            .container {
+                max-width: 800px;
+                margin: 50px auto;
+                padding: 20px;
+            }
+            .title {
+                text-align: center;
+                color: white;
+                margin-bottom: 30px;
+                font-size: 2.5rem;
+                font-weight: 700;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            }
+            .card {
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            }
+            .form-group {
+                margin-bottom: 20px;
+            }
+            label {
+                display: block;
+                margin-bottom: 8px;
+                font-weight: 600;
+                color: #333;
+                font-size: 14px;
+            }
+            select, input {
+                width: 100%;
+                padding: 12px;
+                border: 2px solid #e0e0e0;
+                border-radius: 6px;
+                font-size: 16px;
+                transition: border-color 0.3s;
+            }
+            select:focus, input:focus {
+                outline: none;
+                border-color: #667eea;
+            }
+            small {
+                color: #666;
+                display: block;
+                margin-top: 5px;
+                font-size: 13px;
+            }
+            .info-box {
+                background: #e3f2fd;
+                padding: 15px;
+                border-radius: 6px;
+                margin: 20px 0;
+                border-left: 4px solid #2196f3;
+            }
+            .info-box p {
+                margin: 0;
+                color: #1565c0;
+                line-height: 1.6;
+            }
+            .info-box strong {
+                font-weight: 700;
+            }
+            button {
+                width: 100%;
+                padding: 14px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                border-radius: 6px;
+                font-size: 16px;
+                font-weight: 700;
+                cursor: pointer;
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+            button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            }
+            button:active {
+                transform: translateY(0);
+            }
+            button:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+            #message {
+                margin: 15px 0;
+                padding: 12px;
+                border-radius: 6px;
+                display: none;
+                font-weight: 500;
+            }
+        block styles
+    body
+        block content
+        block scripts

@@ -1,6 +1,6 @@
 // CSV parsing for row-based and column-based formats
 import Papa from 'papaparse';
-import type { ParsedCSV, CSVParseResult, RoundId } from '../types';
+import type { CSVParseResult, RoundId } from '../types';
 import { normalizeEmail, isValidEmail } from '../utils';
 
 /**
@@ -190,7 +190,7 @@ function parseColumnBased(rows: any[], headers: string[]): {
 /**
  * Parse CSV file
  */
-export function parseCSV(csvContent: string): CSVParseResult {
+export function parseCSV(csvContent: string): Promise<CSVParseResult> {
   return new Promise((resolve) => {
     Papa.parse(csvContent, {
       header: true,

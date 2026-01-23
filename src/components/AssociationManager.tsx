@@ -250,16 +250,6 @@ export const AssociationManager: React.FC = () => {
     return emailsSet.size;
   })();
 
-  const handleCopyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(exportJson);
-      showNotification('Copied to clipboard!', 'info');
-    } catch (error) {
-      console.error('Failed to copy:', error);
-      showNotification('Failed to copy to clipboard', 'error');
-    }
-  };
-
   return (
     <>
       <div className="flex flex-col gap-2">
@@ -391,12 +381,6 @@ export const AssociationManager: React.FC = () => {
             </div>
             
             <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
-              {/* <button
-                onClick={handleCopyToClipboard}
-                className="btn btn-primary"
-              >
-                📋 Copy to Clipboard
-              </button> */}
               <button
                 onClick={() => setShowExportDialog(false)}
                 className="btn btn-secondary"

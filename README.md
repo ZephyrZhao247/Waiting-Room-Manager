@@ -47,6 +47,12 @@ npm run dev
 
 The app will run on `http://localhost:3000`.
 
+### Browser endpoints
+
+- `GET /register` — Browser page to choose a user from `data/users.csv` and register the Zoom email they'll join with; writes to `data/registrants.csv`.
+- `POST /register` — Body: `given_name, family_name, email, zoom_email, zoom_email_confirm`.
+- `GET /getconflicts` — Generates `data/meeting_conflicts.csv` by swapping emails in `data/pcconflicts.csv` with the matching `zoom_email` from `data/registrants.csv`, then downloads the file.
+
 ### Setting Up ngrok (for local development)
 
 ```bash
@@ -248,6 +254,57 @@ If the Zoom client restarts:
 - You'll need to re-open the app from the Apps menu
 - State will be restored from localStorage
 - You can continue managing rounds
+
+## 🔗 Additional Backend APIs
+
+This app includes additional backend features for participant registration and conflict management.
+
+### Registration API
+
+**Endpoint**: `/register`
+
+A web-based registration page where PC members can register their Zoom meeting email.
+
+**Features**:
+- Dropdown list of all PC members from `data/users.csv`
+- Email input with confirmation
+- Stores registrations in `data/registrants.csv`
+- Updates existing registrations automatically
+
+**Usage**: Navigate to `http://localhost:3000/register` (or your deployed URL) to access the registration form.
+
+### Conflicts Export API
+
+**Endpoint**: `/getconflicts`
+
+Generates and downloads a `meeting_conflicts.csv` file by mapping PC member emails to their registered Zoom emails.
+
+**What it does**:
+1. Reads `data/pcconflicts.csv` (original PC conflicts)
+2. Reads `data/registrants.csv` (registered Zoom emails)
+3. Replaces PC emails with Zoom emails based on registration mapping
+4. Returns the generated CSV file for download
+
+**Usage**: 
+- Visit `http://localhost:3000/getconflicts` in a browser to download the file
+- Or use the Python script directly: `python scripts/python/generate_meeting_conflicts.py`
+
+**Data Flow**:
+```
+users.csv → Registration Form → registrants.csv
+                                        ↓
+pcconflicts.csv + registrants.csv → meeting_conflicts.csv (Zoom-ready)
+```
+
+## 🐍 Python Scripts
+
+Located in `scripts/python/`:
+
+- **generate_meeting_conflicts.py**: Standalone script to generate meeting conflicts CSV
+  - Can be run independently: `python scripts/python/generate_meeting_conflicts.py`
+  - Also triggered by the `/getconflicts` API endpoint
+
+See [scripts/python/README.md](scripts/python/README.md) for details.
 
 ### Recovery Procedures
 

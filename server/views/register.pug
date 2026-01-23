@@ -1,0 +1,49 @@
+extends browser-layout
+
+block content
+    .container
+        h1.title Register for Meeting
+        
+        .card
+            form#registration-form
+                .form-group
+                    label(for="user-select") Select Your Name:
+                    select#user-select.form-control(required)
+                        option(value="") -- Select yourself from the list --
+                        each user in users
+                            option(
+                                value=JSON.stringify({given_name: user.given_name, family_name: user.family_name, email: user.email})
+                            ) #{user.given_name} #{user.family_name} (#{user.email})
+                
+                .info-box
+                    p
+                        strong ℹ️ Important: 
+                        | Please enter the email address you will use to join the Zoom meeting. 
+                        | This email will be used to match your participation in the meeting with your PC member profile.
+                
+                .form-group
+                    label(for="zoom-email") Zoom Meeting Email:
+                    input#zoom-email.form-control(
+                        type="email"
+                        required
+                        placeholder="your-zoom-email@example.com"
+                    )
+                    small
+                        | Enter the email address you'll use when joining the Zoom meeting
+                
+                .form-group
+                    label(for="zoom-email-confirm") Confirm Zoom Meeting Email:
+                    input#zoom-email-confirm.form-control(
+                        type="email"
+                        required
+                        placeholder="your-zoom-email@example.com"
+                    )
+                    small
+                        | Re-enter the same email to confirm
+                
+                #message
+                
+                button.btn.btn-primary(type="submit") Register
+
+block scripts
+    script(src="/browser/register.js")

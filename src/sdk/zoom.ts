@@ -9,7 +9,6 @@ import type {
 
 // SDK configuration state
 let isConfigured = false;
-let configError: Error | null = null;
 
 // Global email collection state (subscribed once)
 const emailByUUID = new Map<string, string>();
@@ -18,6 +17,12 @@ let emailHandlerSubscribed = false;
 
 // Callback for when emails are updated
 let onEmailUpdatedCallback: ((participantUUID: string, email: string) => void) | null = null;
+
+// Detect whether we are running inside the Zoom client (official user agent check)
+function isRunningInZoomClient(): boolean {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  return navigator.userAgent?.includes('ZoomApps') ?? false;
+}
 
 /**
  * Set a callback to be notified when participant emails are received
@@ -39,6 +44,15 @@ export function getEmailByUUID(): Map<string, string> {
 export async function configureZoomSDK(): Promise<{ success: boolean; error?: string }> {
   if (isConfigured) {
     return { success: true };
+  }
+
+  // Skip SDK init when not inside Zoom Apps environment
+  if (!isRunningInZoomClient()) {
+    console.log('[Zoom SDK] Not running inside Zoom client, skipping SDK init');
+    return {
+      success: false,
+      error: 'Zoom Apps SDK is not supported in this environment. Open this app from the Zoom client.',
+    };
   }
 
   try {
@@ -100,7 +114,6 @@ export async function configureZoomSDK(): Promise<{ success: boolean; error?: st
     return { success: true };
   } catch (error) {
     console.error('[Zoom SDK] Configuration failed:', error);
-    configError = error as Error;
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to configure Zoom SDK',
@@ -110,12 +123,9 @@ export async function configureZoomSDK(): Promise<{ success: boolean; error?: st
 
 /**
  * Check if running inside Zoom client
- * For development, always return true to allow testing
  */
 export function isInZoomClient(): boolean {
-  // Always return true - let the SDK config fail if not in Zoom
-  // This allows the app to load and show better error messages
-  return true;
+  return isRunningInZoomClient();
 }
 
 /**

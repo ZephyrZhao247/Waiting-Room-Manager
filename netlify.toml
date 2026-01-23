@@ -1,5 +1,5 @@
 [[redirects]]
-  from = "/*"
+  from = "/zoom/*"
   to = "/index.html"
   status = 200
 
@@ -8,7 +8,7 @@
   publish = "dist"
 
 [[headers]]
-  for = "/*"
+  for = "/zoom/*"
   [headers.values]
     X-Frame-Options = "ALLOWALL"
     Content-Security-Policy = "frame-ancestors 'self' https://*.zoom.us https://*.zoom.com"

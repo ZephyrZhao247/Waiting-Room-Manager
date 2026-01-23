@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { configureZoomSDK, isInZoomClient, getMeetingContext } from './sdk/zoom';
 import { UploadPanel } from './components/UploadPanel';
 import { RoundSelector } from './components/RoundSelector';
@@ -9,12 +9,20 @@ import { EmailAssociationPanel } from './components/EmailAssociationPanel';
 import { AssociationManager } from './components/AssociationManager';
 
 function App() {
-  const [sdkStatus, setSdkStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [sdkStatus, setSdkStatus] = useState<'loading' | 'ready' | 'error' | 'browser'>('loading');
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const [isHost, setIsHost] = useState<boolean>(false);
+  const [, setIsHost] = useState<boolean>(false);
 
   useEffect(() => {
     const initializeSDK = async () => {
+      const inZoomClient = isInZoomClient();
+      
+      if (!inZoomClient) {
+        console.warn('[App] Not running inside Zoom client, skipping SDK init');
+        setSdkStatus('browser');
+        return;
+      }
+
       console.log('[App] Starting SDK initialization...');
       
       // Configure SDK
@@ -66,6 +74,37 @@ function App() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <div className="text-lg font-medium text-gray-700">Initializing Zoom App...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (sdkStatus === 'browser') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="max-w-xl w-full bg-white rounded-lg shadow-lg p-6 space-y-4 text-center">
+          <div className="text-4xl">👋</div>
+          <h1 className="text-xl font-bold text-gray-900">Welcome to Zoom Meeting Manager</h1>
+          <p className="text-gray-700">
+            This page is designed to run inside the Zoom client. If you just need the browser tools, use the links below.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <a
+              className="px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold shadow hover:bg-indigo-700"
+              href="/register"
+            >
+              Register for Meeting
+            </a>
+            <a
+              className="px-4 py-2 rounded-md bg-gray-100 text-gray-800 font-semibold hover:bg-gray-200 border border-gray-200"
+              href="/getconflicts"
+            >
+              Download Conflicts CSV
+            </a>
+          </div>
+          <div className="text-sm text-gray-600">
+            To use the full Zoom App experience, open Zoom, start or join a meeting, then launch this app from the Apps tab.
+          </div>
         </div>
       </div>
     );
@@ -146,4 +185,3 @@ function App() {
 }
 
 export default App;
-

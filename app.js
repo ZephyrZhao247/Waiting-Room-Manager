@@ -128,11 +128,9 @@ app.get('/', (req, res) => {
         <body>
             <div class="container">
                 <h1>Zoom Meeting Manager</h1>
-                <p>Browser tools are available below. The Zoom app experience lives under <code>/zoom</code>.</p>
+                <p>This is the registration page for MLSys 2026 online PC meeting.</p>
                 <div>
-                    <a href="/register">Register for Meeting</a>
-                    <a href="/getconflicts">Download Conflicts CSV</a>
-                    <a href="/zoom">Open Zoom App</a>
+                    <a href="/register">Register for MLSys 2026</a>
                 </div>
             </div>
         </body>

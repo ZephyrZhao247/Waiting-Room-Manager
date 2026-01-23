@@ -38,8 +38,7 @@ export async function sendParticipantsToBreakoutRooms(
         console.warn('[Breakout] Failed to close existing rooms:', closeResult.error);
       } else {
         console.log('[Breakout] Closed existing breakout rooms');
-        // Wait a moment for rooms to fully close
-        await delay(1000);
+        await waitForBreakoutRoomsToClose();
       }
     }
 
@@ -92,6 +91,7 @@ export async function sendParticipantsToBreakoutRooms(
       }
     }
 
+    await delay(BATCH_DELAY_MS * 2);
     // Step 5: Open breakout rooms to activate assignments
     const openResult = await openBreakoutRooms();
     if (!openResult.success) {
@@ -194,4 +194,16 @@ async function assignParticipantWithRetry(
  */
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function waitForBreakoutRoomsToClose(timeoutMs = 5000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const status = await getBreakoutRoomList();
+    if (!status.success || status.state !== 'open') {
+      return;
+    }
+    await delay(400);
+  }
+  console.warn('[Breakout] Timed out waiting for rooms to close; continuing anyway');
 }
